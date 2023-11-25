@@ -1,0 +1,107 @@
+import { Fragment, useEffect, useState } from "react";
+import { useCards } from "../contexts/CardContext";
+import styled from "styled-components";
+import checkmark from "./icons/checkmark.svg";
+
+const ListWrap = styled.div`
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+`;
+
+const Title = styled.h2`
+    margin-bottom: 20px;
+`;
+
+const H3 = styled.h3`
+    padding: 0;
+    margin: 0 0 10px 0;
+    font-weight: normal;
+    font-size: 2rem;
+`;
+
+const ListBlock = styled.pre`
+    background-color: #14161a;
+    padding: 20px;
+    width: 85%;
+    min-height: 50%;
+    font-size: 2rem;
+`
+const ListItem = styled.span`
+    display: inline-block;
+    width: 100%;
+    white-space: normal;
+    padding-left: 1.5em;
+    text-indent: -1.6em;
+`;
+
+const Img = styled.img`
+    transform: translate(0, 10%);
+`
+
+const Button = styled.button`
+    font-size: 2rem;
+    padding: 5px;
+    height: 60px;
+    width: 80%;
+    margin: 10px 0;
+`
+
+export const SearchListWrapper = () => {
+
+    const [clipboarded, setClipboarded] = useState(false);
+    const { fdb, cardSearch, addRemoveList, pushSeachListToDeck } = useCards()
+
+    const adjustDbToAddRemovedCard = (fdb, delim) => (
+        fdb.data.reduce((acc, card) => {
+            const cardName = (card?.card_faces ?? false)
+                ? card.card_faces[0].name + " // " + card.card_faces[1].name
+                : card.name
+            const numOfCard = (addRemoveList?.[card.oracle_id] ?? 1)
+            return numOfCard < 1
+                ? acc
+                : acc + delim + numOfCard + "x " + cardName
+        },"")
+    )
+
+    const copyButton = () => {
+        if(fdb)
+            navigator.clipboard.writeText(
+                adjustDbToAddRemovedCard(fdb, "\n")
+            );
+        setClipboarded(fdb)
+    }
+
+    useEffect(() => {
+        setClipboarded(false);
+    }, [cardSearch, setClipboarded])
+
+    return <ListWrap>
+        <Title>Search List</Title>
+        <H3>{
+            (fdb?.data ?? false) && !fdb.has_more && "Total Cards: " + adjustDbToAddRemovedCard(fdb, "^").split("^").slice(1).map((text)=> text.split("x")[0]).reduce((acc, num) => acc+Number(num),0)
+        }</H3>
+        <Button onClick={pushSeachListToDeck}> Add to Deck </Button>
+        <Button onClick={copyButton}>
+            {
+                clipboarded 
+                ? <Img height={40} src={checkmark}/>
+                : "Click to Copy"
+            }
+        </Button>
+        <ListBlock>
+            {
+                !fdb && <ListItem>Search Cards to get List</ListItem>
+            }
+            {
+                (fdb?.data ?? false) && !fdb.has_more && adjustDbToAddRemovedCard(fdb, "^").split("^").slice(1).map((cardName, i) => (
+                    <Fragment key={`listFrag${i}`}>
+                        <ListItem>{cardName}</ListItem>
+                        <br/>
+                    </Fragment>
+                ))
+            }
+        </ListBlock>
+    </ListWrap>
+}
