@@ -1,3 +1,3 @@
 import { CardSearchWrapper } from './component';
 
-export const CardSearch = () => <CardSearchWrapper/>
+export const CardSearch = (props) => <CardSearchWrapper {...props}/>

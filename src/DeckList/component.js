@@ -80,7 +80,7 @@ export const DeckListWrapper = () => {
     return <ListWrap>
         <Title>Deck List</Title>
         <H3>{
-            (fdb?.data ?? false) && !fdb.has_more && deckList && "Total Cards: " + deckList.map((text)=> text.split("x")[0]).reduce((acc, num) => acc+Number(num),0)
+            (fdb?.data ?? false) && deckList && "Total Cards: " + deckList.map((text)=> text.split("x")[0]).reduce((acc, num) => acc+Number(num),0)
         }</H3>
         <Button onClick={clearButton}>
             {
@@ -101,7 +101,7 @@ export const DeckListWrapper = () => {
                 !fdb && <ListItem>Add Cards From Search List</ListItem>
             }
             {
-                (fdb?.data ?? false) && !fdb.has_more && deckList && deckList.map((cardName, i) => {
+                (fdb?.data ?? false) && deckList && deckList.map((cardName, i) => {
                     return (
                         <Fragment key={`listFrag${i}`}>
                             <ListItem>{cardName}</ListItem>

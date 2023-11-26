@@ -51,14 +51,14 @@ const Button = styled.button`
 export const SearchListWrapper = () => {
 
     const [clipboarded, setClipboarded] = useState(false);
-    const { fdb, cardSearch, addRemoveList, pushSeachListToDeck } = useCards()
+    const { fdb, cardSearch, addRemoveList, pushSeachListToDeck, numOfCopies } = useCards()
 
     const adjustDbToAddRemovedCard = (fdb, delim) => (
         fdb.data.reduce((acc, card) => {
             const cardName = (card?.card_faces ?? false)
                 ? card.card_faces[0].name + " // " + card.card_faces[1].name
                 : card.name
-            const numOfCard = (addRemoveList?.[card.oracle_id] ?? 1)
+            const numOfCard = (addRemoveList?.[card.oracle_id] ?? numOfCopies)
             return numOfCard < 1
                 ? acc
                 : acc + delim + numOfCard + "x " + cardName
@@ -80,7 +80,7 @@ export const SearchListWrapper = () => {
     return <ListWrap>
         <Title>Search List</Title>
         <H3>{
-            (fdb?.data ?? false) && !fdb.has_more && "Total Cards: " + adjustDbToAddRemovedCard(fdb, "^").split("^").slice(1).map((text)=> text.split("x")[0]).reduce((acc, num) => acc+Number(num),0)
+            (fdb?.data ?? false) && "Total Cards: " + adjustDbToAddRemovedCard(fdb, "^").split("^").slice(1).map((text)=> text.split("x")[0]).reduce((acc, num) => acc+Number(num),0)
         }</H3>
         <Button onClick={pushSeachListToDeck}> Add to Deck </Button>
         <Button onClick={copyButton}>
@@ -95,7 +95,7 @@ export const SearchListWrapper = () => {
                 !fdb && <ListItem>Search Cards to get List</ListItem>
             }
             {
-                (fdb?.data ?? false) && !fdb.has_more && adjustDbToAddRemovedCard(fdb, "^").split("^").slice(1).map((cardName, i) => (
+                (fdb?.data ?? false) && adjustDbToAddRemovedCard(fdb, "^").split("^").slice(1).map((cardName, i) => (
                     <Fragment key={`listFrag${i}`}>
                         <ListItem>{cardName}</ListItem>
                         <br/>

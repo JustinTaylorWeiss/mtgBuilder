@@ -1,5 +1,4 @@
-import React, { useContext, createContext, useEffect, useState, useMemo } from 'react';
-import { SearchList } from '../SearchList';
+import React, { useContext, createContext, useEffect, useState, useMemo, useCallback } from 'react';
 
 const CardContext = createContext();
 
@@ -22,6 +21,10 @@ export const CardProvider = ({ children }) => {
             colorless: false, 
         }
     );
+    const [loading, setLoading] = useState(false);
+    const [numOfCopies, setNumOfCopies] = useState(1);
+    const [cmcFilterType, setCmcFilterType] = useState('=');
+    const [cmcFilter, setCmcFilter] = useState('');
     const [cardSearch, setCardSearch] = useState('');
     const [catagorySearch, setCatagorySearch] = useState('');
     const [showBannedCards, setShowBannedCards] = useState(false);
@@ -36,14 +39,14 @@ export const CardProvider = ({ children }) => {
             const cardName = (card?.card_faces ?? false)
                 ? card.card_faces[0].name + " // " + card.card_faces[1].name
                 : card.name
-            const numOfCard = (addRemoveList?.[card.oracle_id] ?? 1)
+            const numOfCard = (addRemoveList?.[card.oracle_id] ?? numOfCopies)
             return numOfCard < 1
                 ? acc
                 : acc + numOfCard + "x " + cardName + delim
         },"")
     )
 
-    const colorFilterToUriText = (colorFilter) => (
+    const colorFilterToUriText = useCallback((colorFilter) => (
         "+" + 
         (
             colorFilter.filterType === "colorIdentity"
@@ -59,24 +62,37 @@ export const CardProvider = ({ children }) => {
             (colorFilter.red   ? "R" : "") +
             (colorFilter.green ? "G" : "")
         )
-    );
+    ),[]);
 
-    const buildUri = (rootUri, colorFilter) => (
+    const addCardToDeckList = (cardName, quantity) => {
+        if(quantity > 0)
+            setDeckList((prev) => [...prev, quantity + "x " + cardName])
+    };
+
+    const buildUri = useCallback((rootUri, cardSearch, cmcFilter, cmcFilterType, catagorySearch, showBannedCards, colorFilter) => (
         rootUri + 
         "search?order=cmc&q=" + 
         cardSearch + 
+        (cmcFilter !== ""
+            ? ("+mv" + cmcFilterType + cmcFilter)
+            : "") + 
+        catagorySearch +
         (showBannedCards ? "" : "+f%3Acommander") + 
         colorFilterToUriText(colorFilter)
-    )
+    ),[colorFilterToUriText])
 
     useEffect(() => {
         console.log(colorFilterToUriText(colorFilter))
-        if(cardSearch !== "")
+        if(cardSearch !== "" || catagorySearch !== "")
             (async () => {
+                setLoading(true);
                 try {
-                    const res = await fetch(buildUri("https://api.scryfall.com/cards/", colorFilter));
+                    const uri = buildUri("https://api.scryfall.com/cards/", cardSearch, cmcFilter, cmcFilterType, catagorySearch, showBannedCards, colorFilter);
+                    console.log("uri: " + uri)
+                    const res = await fetch(uri);
                     if(res.ok) {
                         const resJson = await res.json();
+                        setLoading(false);
                         setDb(resJson);
                     }
                     else { throw new Error("Responce not 2xx"); }
@@ -84,13 +100,9 @@ export const CardProvider = ({ children }) => {
                     console.log(`Card Not Found (Search: ${cardSearch})`);
                 }
             })()
-        setDb(false);
-    }, [cardSearch, setDb, colorFilter, showBannedCards]);
-
-    // Reset Page Number Whenever A New Filter Is Applied
-    useEffect(() => {
-        setPage(0);
-    },[cardSearch])
+        else
+            setDb(false);
+    }, [cardSearch, setDb, colorFilterToUriText, colorFilter, cmcFilter, cmcFilterType, showBannedCards, catagorySearch, buildUri]);
     
     const colorlessTrueFilter = (filterType) => ({
         filterType: filterType,
@@ -123,32 +135,34 @@ export const CardProvider = ({ children }) => {
     );
 
     const pushSeachListToDeck = () => {
-        if ((fdb?.data ?? false) && !fdb.has_more)
+        if (fdb?.data ?? false)
         setDeckList((prev) => [
             ...prev,
             ...adjustDbToAddRemovedCard(fdb, "^").split("^"),
         ])
     }
 
-    const resetDeckList = () => {
-        setDeckList([]);
-    };
-
-    const resetAddRemoveList = () => {
-        setAddRemoveList({});
+    const loadMoreCards = async() => {
+        setLoading(true);
+        const res = await fetch(db.next_page);
+        const json = await res.json();
+        setDb({
+            ...json,
+            data: [...db.data, ...json.data],
+        });
+        setLoading(false);
     }
 
+    const resetDeckList = useCallback(() => {
+        setDeckList([]);
+    }, [setDeckList]);
+
+    const resetAddRemoveList = useCallback(() => {
+        setAddRemoveList({});
+    }, [setAddRemoveList]);
+
     // Set FDB
-    const fdb = useMemo(() => (
-        db
-        /*
-        (async () => (
-            [
-            ].reduce((acc, func) => 
-                func(acc)
-            , db)
-        ))()*/
-    ), [cardSearch, db]);
+    const fdb = useMemo(() => (db), [db]);
 
     // Helper Functions
     const changePage = (delta) => {
@@ -162,16 +176,21 @@ export const CardProvider = ({ children }) => {
         fdb,
         db,
         colorFilter,
-        selected, setSelected,
+        selected, setSelected, 
+        loading, setLoading, 
         deckList, setDeckList,
+        numOfCopies, setNumOfCopies,
         cardSearch, setCardSearch,
+        cmcFilterType, setCmcFilterType,
+        cmcFilter, setCmcFilter,
         showBannedCards, setShowBannedCards,
         catagorySearch, setCatagorySearch,
         addRemoveList, setAddRemoveList,
         changePage, setColorOnColorFilter, 
         setFilterType, adjustDbToAddRemovedCard,
         pushSeachListToDeck, resetDeckList,
-        resetAddRemoveList,
+        resetAddRemoveList, addCardToDeckList,
+        loadMoreCards,
     };
 
     return <CardContext.Provider value={value}>{children}</CardContext.Provider>
